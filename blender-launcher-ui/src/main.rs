@@ -21,6 +21,16 @@ const CAMERA_TARGET: Vec3 = Vec3::ZERO;
 #[derive(Resource, Deref, DerefMut)]
 struct OriginalCameraTransform(Transform);
 
+struct File {
+    path: String,
+}
+
+#[derive(Resource)]
+struct AppState {
+    selected_file: Option<usize>,
+    files: Vec<File>,
+}
+
 struct SpawnEvent;
 
 fn main() {
@@ -28,6 +38,10 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(bevy_blender::BlenderPlugin)
+        .insert_resource(AppState {
+            selected_file: None,
+            files: Vec::new(),
+        })
         .add_event::<SpawnEvent>()
         .init_resource::<OccupiedScreenSpace>()
         .add_startup_system(setup_system)
@@ -41,6 +55,7 @@ fn ui_example_system(
     mut contexts: EguiContexts,
     mut occupied_screen_space: ResMut<OccupiedScreenSpace>,
     mut spawn_events: EventWriter<SpawnEvent>,
+    mut app_state: ResMut<AppState>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -48,6 +63,13 @@ fn ui_example_system(
         .resizable(true)
         .show(ctx, |ui| {
             ui.heading("Left Panel");
+
+            for (index, file) in app_state.files.iter().enumerate() {
+                if ui.button(&file.path).clicked() {
+                    println!("selected {}", file.path);
+                }
+            }
+
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
         .response
@@ -64,19 +86,18 @@ fn ui_example_system(
 
             if ui.button("Select file").clicked() {
                 let files = FileDialog::new()
-                    .add_filter("text", &["txt", "rs"])
-                    .add_filter("rust", &["rs", "toml"])
+                    .add_filter("Blender", &["blend"])
                     .set_directory("/")
                     .pick_files();
-
-                // dbg!(files);
-                // println!("selected files {}", files);
 
                 if let Some(file_path_buffers) = files {
                     for file_path_buffer in file_path_buffers {
                         let file_path_option = file_path_buffer.to_str();
                         if let Some(file_path) = file_path_option {
                             println!("{}", file_path);
+                            app_state.files.push(File {
+                                path: file_path.to_string(),
+                            });
                         }
                     }
                 }
