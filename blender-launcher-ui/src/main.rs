@@ -64,10 +64,40 @@ fn ui_example_system(
         .show(ctx, |ui| {
             ui.heading("Left Panel");
 
+            // We grab the selected ID to use later
+            let selected_id = app_state.selected_file.unwrap_or(0);
+            // We also store the original selected file index later to check for changes
+            let original_file = app_state.selected_file.clone();
+
+            // We keep the selected file index outside the loop
+            // since we mutate `app_state` in loop
+            let mut selected_file = None;
+
+            // Loop over all files and show UI for them
             for (index, file) in app_state.files.iter().enumerate() {
-                if ui.button(&file.path).clicked() {
+                // Is the file selected? Change the name to signify that.
+                let is_selected = app_state.selected_file.is_some() && selected_id == index;
+                let name = if is_selected {
+                    format!("⭐ {}", &file.path)
+                } else {
+                    file.path.to_string()
+                };
+
+                // Render the UI
+                if ui.button(name).clicked() {
+                    // Did we click?
+                    // Toggle the file as selected/unselected.
                     println!("selected {}", file.path);
+                    if is_selected {
+                        selected_file = None;
+                    } else {
+                        selected_file = Some(index);
+                    }
                 }
+            }
+            // Update the state if we made changes
+            if selected_file != original_file {
+                app_state.selected_file = selected_file;
             }
 
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
