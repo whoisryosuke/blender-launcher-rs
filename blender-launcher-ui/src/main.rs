@@ -20,13 +20,17 @@ const CAMERA_TARGET: Vec3 = Vec3::ZERO;
 #[derive(Resource, Deref, DerefMut)]
 struct OriginalCameraTransform(Transform);
 
+struct SpawnEvent;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugin(EguiPlugin)
         .add_plugin(bevy_blender::BlenderPlugin)
+        .add_event::<SpawnEvent>()
         .init_resource::<OccupiedScreenSpace>()
         .add_startup_system(setup_system)
+        .add_system(test_spawn)
         .add_system(ui_example_system)
         .add_system(update_camera_transform_system)
         .run();
@@ -35,6 +39,7 @@ fn main() {
 fn ui_example_system(
     mut contexts: EguiContexts,
     mut occupied_screen_space: ResMut<OccupiedScreenSpace>,
+    mut spawn_events: EventWriter<SpawnEvent>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -51,6 +56,11 @@ fn ui_example_system(
         .resizable(true)
         .show(ctx, |ui| {
             ui.heading("Right Panel");
+
+            if ui.button("Spawn").clicked() {
+                spawn_events.send(SpawnEvent);
+            }
+
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
         })
         .response
@@ -76,18 +86,32 @@ fn ui_example_system(
         .height();
 }
 
-fn setup_system(
+fn test_spawn(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: ResMut<AssetServer>,
+    mut spawn_event: EventReader<SpawnEvent>,
 ) {
+    if spawn_event.is_empty() {
+        return;
+    }
+
+    for event in spawn_event.iter() {
+        // Spawn the Suzanne mesh with the Red material
+        commands.spawn(PbrBundle {
+            mesh: asset_server.load(blender_mesh!("demo.blend", "Suzanne")),
+            material: asset_server.load(blender_material!("demo.blend", "Red")),
+            ..Default::default()
+        });
+    }
+}
+
+fn setup_system(mut commands: Commands, asset_server: ResMut<AssetServer>) {
     // Spawn the Suzanne mesh with the Red material
-    commands.spawn(PbrBundle {
-        mesh: asset_server.load(blender_mesh!("demo.blend", "Suzanne")),
-        material: asset_server.load(blender_material!("demo.blend", "Red")),
-        ..Default::default()
-    });
+    // commands.spawn(PbrBundle {
+    //     mesh: asset_server.load(blender_mesh!("demo.blend", "Suzanne")),
+    //     material: asset_server.load(blender_material!("demo.blend", "Red")),
+    //     ..Default::default()
+    // });
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
