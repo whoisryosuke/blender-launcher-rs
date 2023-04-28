@@ -4,6 +4,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use rfd::FileDialog;
 
 use bevy_blender::*;
 
@@ -59,6 +60,26 @@ fn ui_example_system(
 
             if ui.button("Spawn").clicked() {
                 spawn_events.send(SpawnEvent);
+            }
+
+            if ui.button("Select file").clicked() {
+                let files = FileDialog::new()
+                    .add_filter("text", &["txt", "rs"])
+                    .add_filter("rust", &["rs", "toml"])
+                    .set_directory("/")
+                    .pick_files();
+
+                // dbg!(files);
+                // println!("selected files {}", files);
+
+                if let Some(file_path_buffers) = files {
+                    for file_path_buffer in file_path_buffers {
+                        let file_path_option = file_path_buffer.to_str();
+                        if let Some(file_path) = file_path_option {
+                            println!("{}", file_path);
+                        }
+                    }
+                }
             }
 
             ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
