@@ -21,6 +21,9 @@ const CAMERA_TARGET: Vec3 = Vec3::ZERO;
 #[derive(Resource, Deref, DerefMut)]
 struct OriginalCameraTransform(Transform);
 
+#[derive(Component)]
+struct BlenderPreviewObject;
+
 struct File {
     path: String,
 }
@@ -31,7 +34,7 @@ struct AppState {
     files: Vec<File>,
 }
 
-struct SpawnEvent;
+struct SpawnEvent(usize);
 
 fn main() {
     App::new()
@@ -92,6 +95,7 @@ fn ui_example_system(
                         selected_file = None;
                     } else {
                         selected_file = Some(index);
+                        spawn_events.send(SpawnEvent(index));
                     }
                 }
             }
@@ -110,9 +114,9 @@ fn ui_example_system(
         .show(ctx, |ui| {
             ui.heading("Right Panel");
 
-            if ui.button("Spawn").clicked() {
-                spawn_events.send(SpawnEvent);
-            }
+            // if ui.button("Spawn").clicked() {
+            //     spawn_events.send(SpawnEvent);
+            // }
 
             if ui.button("Select file").clicked() {
                 let files = FileDialog::new()
@@ -162,18 +166,31 @@ fn test_spawn(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
     mut spawn_event: EventReader<SpawnEvent>,
+    app_state: Res<AppState>,
 ) {
     if spawn_event.is_empty() {
         return;
     }
 
     for event in spawn_event.iter() {
-        // Spawn the Suzanne mesh with the Red material
-        commands.spawn(PbrBundle {
-            mesh: asset_server.load(blender_mesh!("demo.blend", "Suzanne")),
-            material: asset_server.load(blender_material!("demo.blend", "Red")),
-            ..Default::default()
-        });
+        let SpawnEvent(file_id) = event;
+        let file = &app_state.files[*file_id];
+        let mut file_name = file.path.to_owned();
+        file_name.push_str("#MESuzanne");
+        let mut material_name = file.path.to_owned();
+        file_name.push_str("#MARed");
+
+        // @TODO: Clear previous Blender objects
+
+        // Spawn the Blender object
+        commands.spawn((
+            BlenderPreviewObject,
+            PbrBundle {
+                mesh: asset_server.load(file_name),
+                material: asset_server.load(material_name),
+                ..Default::default()
+            },
+        ));
     }
 }
 
