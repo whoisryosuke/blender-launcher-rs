@@ -10,4 +10,5 @@ bevy = "0.10.0"
 # bevy_blender = "0.1.0"
 bevy_blender = { path = "../bevy_blender" }
 bevy_egui = "0.20.1"
+blend = "0.8.0"
 rfd = "0.11.3"

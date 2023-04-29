@@ -1111,6 +1111,7 @@ dependencies = [
  "bevy",
  "bevy_blender",
  "bevy_egui",
+ "blend",
  "rfd",
 ]
 

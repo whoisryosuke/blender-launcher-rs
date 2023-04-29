@@ -4,6 +4,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
+use blend::Blend;
 use rfd::FileDialog;
 
 use bevy_blender::*;
@@ -26,6 +27,8 @@ struct BlenderPreviewObject;
 
 struct File {
     path: String,
+    meshes: Vec<String>,
+    materials: Vec<String>,
 }
 
 #[derive(Resource)]
@@ -34,7 +37,8 @@ struct AppState {
     files: Vec<File>,
 }
 
-struct SpawnEvent(usize);
+struct LoadBlenderData(usize);
+struct SpawnEvent(usize, usize);
 
 fn main() {
     App::new()
@@ -45,9 +49,11 @@ fn main() {
             selected_file: None,
             files: Vec::new(),
         })
+        .add_event::<LoadBlenderData>()
         .add_event::<SpawnEvent>()
         .init_resource::<OccupiedScreenSpace>()
         .add_startup_system(setup_system)
+        .add_system(load_blender_metadata)
         .add_system(test_spawn)
         .add_system(ui_example_system)
         .add_system(update_camera_transform_system)
@@ -58,6 +64,7 @@ fn ui_example_system(
     mut contexts: EguiContexts,
     mut occupied_screen_space: ResMut<OccupiedScreenSpace>,
     mut spawn_events: EventWriter<SpawnEvent>,
+    mut load_metadata_event: EventWriter<LoadBlenderData>,
     mut app_state: ResMut<AppState>,
 ) {
     let ctx = contexts.ctx_mut();
@@ -95,9 +102,18 @@ fn ui_example_system(
                         selected_file = None;
                     } else {
                         selected_file = Some(index);
-                        spawn_events.send(SpawnEvent(index));
+                        // spawn_events.send(SpawnEvent(index));
+                        load_metadata_event.send(LoadBlenderData(index));
                     }
                 }
+
+                for (mesh_index, mesh_name) in file.meshes.iter().enumerate() {
+                    if ui.button(mesh_name).clicked() {
+                        spawn_events.send(SpawnEvent(index, mesh_index));
+                    }
+                }
+
+                ui.spacing();
             }
             // Update the state if we made changes
             if selected_file != original_file {
@@ -131,6 +147,8 @@ fn ui_example_system(
                             println!("{}", file_path);
                             app_state.files.push(File {
                                 path: file_path.to_string(),
+                                meshes: Vec::new(),
+                                materials: Vec::new(),
                             });
                         }
                     }
@@ -162,6 +180,44 @@ fn ui_example_system(
         .height();
 }
 
+fn load_blender_metadata(
+    mut load_events: EventReader<LoadBlenderData>,
+    mut app_state: ResMut<AppState>,
+) {
+    if load_events.is_empty() {
+        return;
+    }
+
+    for event in load_events.iter() {
+        let LoadBlenderData(file_id) = event;
+        let file = &mut app_state.files[*file_id];
+
+        println!("Loading file metadata {}", file.path);
+
+        let blend = Blend::from_path(&file.path).expect("error loading blend file");
+
+        // Loop through all the objects in the Blender file
+        for obj in blend.instances_with_code(*b"OB") {
+            // Grab the names of each object (or "layer" like Photoshop)
+            let loc = obj.get_f32_vec("loc");
+            let mut name_raw = obj.get("id").get_string("name");
+
+            // blend crate prefixes the names with OB, so we remove that if we find it
+            let should_remove = name_raw.starts_with("OB");
+            let name = if should_remove {
+                name_raw.split_off(2).to_string()
+            } else {
+                name_raw
+            };
+
+            // Store the object (aka "mesh") names alongside the file data
+            // so we can select and load them
+            println!("\"{}\" at {:?}", &name, loc);
+            file.meshes.push(name);
+        }
+    }
+}
+
 fn test_spawn(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
@@ -173,10 +229,12 @@ fn test_spawn(
     }
 
     for event in spawn_event.iter() {
-        let SpawnEvent(file_id) = event;
+        let SpawnEvent(file_id, mesh_id) = event;
         let file = &app_state.files[*file_id];
+        let mesh_name = &file.meshes[*mesh_id];
         let mut file_name = file.path.to_owned();
-        file_name.push_str("#MECylinder");
+        file_name.push_str("#ME");
+        file_name.push_str(mesh_name);
         let mut material_name = file.path.to_owned();
         material_name.push_str("#MABlue");
 
