@@ -223,12 +223,19 @@ fn test_spawn(
     asset_server: ResMut<AssetServer>,
     mut spawn_event: EventReader<SpawnEvent>,
     app_state: Res<AppState>,
+    blender_objects: Query<Entity, With<BlenderPreviewObject>>,
 ) {
     if spawn_event.is_empty() {
         return;
     }
 
     for event in spawn_event.iter() {
+        // Clear previous Blender objects
+        for blender_entity in blender_objects.iter() {
+            commands.entity(blender_entity).despawn();
+        }
+
+        // Get object data
         let SpawnEvent(file_id, mesh_id) = event;
         let file = &app_state.files[*file_id];
         let mesh_name = &file.meshes[*mesh_id];
@@ -237,8 +244,6 @@ fn test_spawn(
         file_name.push_str(mesh_name);
         let mut material_name = file.path.to_owned();
         material_name.push_str("#MABlue");
-
-        // @TODO: Clear previous Blender objects
 
         // Spawn the Blender object
         commands.spawn((
