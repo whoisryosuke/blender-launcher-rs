@@ -176,9 +176,9 @@ fn test_spawn(
         let SpawnEvent(file_id) = event;
         let file = &app_state.files[*file_id];
         let mut file_name = file.path.to_owned();
-        file_name.push_str("#MESuzanne");
+        file_name.push_str("#MECylinder");
         let mut material_name = file.path.to_owned();
-        file_name.push_str("#MARed");
+        material_name.push_str("#MABlue");
 
         // @TODO: Clear previous Blender objects
 
@@ -188,6 +188,8 @@ fn test_spawn(
             PbrBundle {
                 mesh: asset_server.load(file_name),
                 material: asset_server.load(material_name),
+                // mesh: asset_server.load(blender_mesh!("demo.blend", "Suzanne")),
+                // material: asset_server.load(blender_material!("demo.blend", "Red")),
                 ..Default::default()
             },
         ));
